@@ -1,0 +1,58 @@
+import type { AppTheme, ThemeId } from '../types/app';
+
+export const THEMES: Record<ThemeId, AppTheme> = {
+  ocean: {
+    id: 'ocean',
+    name: 'Ocean Blue',
+    accent: '#1864ab',
+    accentSoft: '#dbeafe',
+    bg: '#f4f9ff',
+    card: '#ffffff',
+    text: '#0f172a',
+    muted: '#475569',
+    border: '#cbd5e1',
+    danger: '#dc2626',
+    modalOverlay: 'rgba(10, 10, 10, 0.35)',
+  },
+  sunset: {
+    id: 'sunset',
+    name: 'Sunset Coral',
+    accent: '#b91c1c',
+    accentSoft: '#ffe4e6',
+    bg: '#fff7ed',
+    card: '#ffffff',
+    text: '#1f2937',
+    muted: '#6b7280',
+    border: '#fed7aa',
+    danger: '#be123c',
+    modalOverlay: 'rgba(20, 12, 8, 0.32)',
+  },
+  forest: {
+    id: 'forest',
+    name: 'Forest Mint',
+    accent: '#166534',
+    accentSoft: '#dcfce7',
+    bg: '#f0fdf4',
+    card: '#ffffff',
+    text: '#052e16',
+    muted: '#3f6212',
+    border: '#bbf7d0',
+    danger: '#b91c1c',
+    modalOverlay: 'rgba(5, 16, 10, 0.34)',
+  },
+  midnight: {
+    id: 'midnight',
+    name: 'Midnight Dark',
+    accent: '#60a5fa',
+    accentSoft: '#1e3a8a',
+    bg: '#0b1220',
+    card: '#111827',
+    text: '#e5e7eb',
+    muted: '#94a3b8',
+    border: '#253047',
+    danger: '#f87171',
+    modalOverlay: 'rgba(0, 0, 0, 0.55)',
+  },
+};
+
+export const defaultThemeId: ThemeId = 'ocean';
