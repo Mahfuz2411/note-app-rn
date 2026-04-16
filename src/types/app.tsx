@@ -7,6 +7,14 @@ export type Note = {
   content: string;
   updatedAt: number;
   pinHash?: string;
+  folderId?: string;
+  photos?: string[];
+};
+
+export type Folder = {
+  id: string;
+  name: string;
+  createdAt: number;
 };
 
 export type AppSettings = {

@@ -15,8 +15,12 @@ import {
 } from 'react-native-safe-area-context';
 import ThemedButton from './src/components/ThemedButton';
 import {
+  createFolder,
+  deleteFolder,
+  deleteMultipleNotes,
   deleteNote,
   loadInitialState,
+  moveNotesToFolder,
   saveNote,
   saveTheme,
   unlockProtectedNote,
@@ -29,7 +33,7 @@ import SplashScreen from './src/screens/SplashScreen';
 import ThemeScreen from './src/screens/ThemeScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import { defaultThemeId, THEMES } from './src/theme/themes';
-import type { Note, Screen, ThemeId } from './src/types/app';
+import type { Folder, Note, Screen, ThemeId } from './src/types/app';
 import { validatePin } from './src/validation/noteValidation';
 
 type DetailMode = 'view' | 'edit';
@@ -46,6 +50,7 @@ function AppRoot() {
   const [showSplash, setShowSplash] = useState(true);
   const [isBooting, setIsBooting] = useState(true);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [themeId, setThemeId] = useState<ThemeId>(defaultThemeId);
   const [query, setQuery] = useState('');
   const [globalError, setGlobalError] = useState('');
@@ -59,6 +64,7 @@ function AppRoot() {
   const [contentInput, setContentInput] = useState('');
   const [protectEnabled, setProtectEnabled] = useState(false);
   const [pinInput, setPinInput] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
   const [editorError, setEditorError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -78,6 +84,7 @@ function AppRoot() {
       if (loaded) {
         setNotes(loaded.notes);
         setThemeId(loaded.themeId);
+        setFolders(loaded.folders);
       }
       setIsBooting(false);
     };
@@ -101,6 +108,7 @@ function AppRoot() {
     setContentInput('');
     setProtectEnabled(false);
     setPinInput('');
+    setPhotos([]);
     setEditorError('');
     setHistoryPast([]);
     setHistoryFuture([]);
@@ -118,6 +126,7 @@ function AppRoot() {
     setContentInput(note.content);
     setProtectEnabled(Boolean(note.pinHash));
     setPinInput('');
+    setPhotos(note.photos || []);
     setEditorError('');
     setDetailMode('view');
     setHistoryPast([]);
@@ -269,6 +278,7 @@ function AppRoot() {
           contentInput,
           protectEnabled,
           pinInput,
+          photos,
         }),
       setGlobalError,
     );
@@ -305,9 +315,69 @@ function AppRoot() {
     await guardedAsync(() => saveTheme(nextThemeId), setGlobalError);
   };
 
-  const insertMarkup = (text: string) => {
-    pushEditorSnapshot();
-    setContentInput(prev => `${prev}${text}`);
+  const onDeleteMultiple = async (noteIds: string[]) => {
+    const nextNotes = await guardedAsync(
+      () => deleteMultipleNotes(notes, noteIds),
+      setGlobalError,
+    );
+    if (nextNotes) {
+      setNotes(nextNotes);
+    }
+  };
+
+  const onMoveToFolder = async (noteIds: string[], folderId: string | undefined) => {
+    const nextNotes = await guardedAsync(
+      () => moveNotesToFolder(notes, noteIds, folderId),
+      setGlobalError,
+    );
+    if (nextNotes) {
+      setNotes(nextNotes);
+    }
+  };
+
+  const onCreateFolder = async (name: string) => {
+    const nextFolders = await guardedAsync(
+      () => createFolder(folders, name),
+      setGlobalError,
+    );
+    if (nextFolders) {
+      setFolders(nextFolders);
+    }
+  };
+
+  const onDeleteFolder = async (folderId: string) => {
+    Alert.alert(
+      'Delete folder?',
+      'Notes in this folder will be moved to "Not grouped".',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const nextFolders = await guardedAsync(
+              () => deleteFolder(folders, folderId),
+              setGlobalError,
+            );
+            if (nextFolders) {
+              setFolders(nextFolders);
+              const nextNotes = await guardedAsync(
+                () => moveNotesToFolder(notes, notes.filter(n => n.folderId === folderId).map(n => n.id), undefined),
+                setGlobalError,
+              );
+              if (nextNotes) {
+                setNotes(nextNotes);
+              }
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const onInsertSkin = () => {
+    // TODO: Implement background/skin options for note
+    console.log('Skin/background options coming soon');
   };
 
   const onBackFromDetail = () => {
@@ -361,12 +431,17 @@ function AppRoot() {
         <HomeScreen
           theme={theme}
           notes={visibleNotes}
+          folders={folders}
           query={query}
           onChangeQuery={setQuery}
           onOpenNote={requestOpenNote}
           onLongPressNote={onLongPressNote}
           onOpenSettings={() => setScreen('settings')}
           onCreate={openCreatePage}
+          onDeleteMultiple={onDeleteMultiple}
+          onMoveToFolder={onMoveToFolder}
+          onCreateFolder={onCreateFolder}
+          onDeleteFolder={onDeleteFolder}
           topSpacing={topSpacing}
           bottomSpacing={bottomSpacing}
         />
@@ -404,6 +479,7 @@ function AppRoot() {
           contentInput={contentInput}
           protectEnabled={protectEnabled}
           pinInput={pinInput}
+          photos={photos}
           isEditing={Boolean(currentNoteId)}
           pinValidationMessage={pinValidationMessage || ''}
           editorError={editorError}
@@ -419,6 +495,8 @@ function AppRoot() {
             }
           }}
           onChangePin={value => setPinInput(value.replace(/[^0-9]/g, '').slice(0, 4))}
+          onAddPhoto={uri => setPhotos(prev => [...prev, uri])}
+          onRemovePhoto={index => setPhotos(prev => prev.filter((_, i) => i !== index))}
           onBack={onBackFromDetail}
           onSave={() => {
             onSaveNote().catch(() => setGlobalError('Could not save note.'));
@@ -433,9 +511,7 @@ function AppRoot() {
             }
             requestDeleteConfirmation(current.id);
           }}
-          onInsertHeader={() => insertMarkup('\n# Heading\n')}
-          onInsertBold={() => insertMarkup('**bold**')}
-          onInsertItalic={() => insertMarkup('*italic*')}
+          onInsertSkin={onInsertSkin}
         />
       ) : null}
 
@@ -452,6 +528,7 @@ function AppRoot() {
                   setContentInput(targetNote.content);
                   setProtectEnabled(Boolean(targetNote.pinHash));
                   setPinInput('');
+                  setPhotos(targetNote.photos || []);
                   setOptionsVisible(false);
                   setScreen('detail');
                   setDetailMode('edit');

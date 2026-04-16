@@ -103,3 +103,7 @@ dist/
 .cache/
 .parcel-cache/
 .eslintignore
+
+
+*.md
+!README.md

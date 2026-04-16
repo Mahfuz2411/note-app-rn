@@ -1,7 +1,7 @@
 import { createId, hashPin } from '../services/noteService';
-import { getStoredNotes, getStoredSettings, setStoredNotes, setStoredSettings } from '../services/storageService';
+import { getStoredFolders, getStoredNotes, getStoredSettings, setStoredFolders, setStoredNotes, setStoredSettings } from '../services/storageService';
 import { defaultThemeId } from '../theme/themes';
-import type { Note, ThemeId } from '../types/app';
+import type { Folder, Note, ThemeId } from '../types/app';
 import { validateNote, validatePin } from '../validation/noteValidation';
 
 type SaveNoteInput = {
@@ -11,6 +11,7 @@ type SaveNoteInput = {
   contentInput: string;
   protectEnabled: boolean;
   pinInput: string;
+  photos: string[];
 };
 
 type SaveNoteResult = {
@@ -19,10 +20,14 @@ type SaveNoteResult = {
   error?: string;
 };
 
-export async function loadInitialState(): Promise<{ notes: Note[]; themeId: ThemeId }> {
-  const [notes, settings] = await Promise.all([getStoredNotes(), getStoredSettings()]);
+export async function loadInitialState(): Promise<{ notes: Note[]; themeId: ThemeId; folders: Folder[] }> {
+  const [notes, settings, folders] = await Promise.all([
+    getStoredNotes(),
+    getStoredSettings(),
+    getStoredFolders(),
+  ]);
   const themeId = settings?.themeId ?? defaultThemeId;
-  return { notes, themeId };
+  return { notes, themeId, folders };
 }
 
 export async function saveTheme(themeId: ThemeId): Promise<void> {
@@ -37,6 +42,7 @@ export async function saveNote(input: SaveNoteInput): Promise<SaveNoteResult> {
     contentInput,
     protectEnabled,
     pinInput,
+    photos,
   } = input;
 
   const noteError = validateNote(titleInput, contentInput);
@@ -70,6 +76,7 @@ export async function saveNote(input: SaveNoteInput): Promise<SaveNoteResult> {
             content,
             pinHash: nextPinHash,
             updatedAt: now,
+            photos: photos.length > 0 ? photos : undefined,
           }
         : note,
     );
@@ -84,6 +91,7 @@ export async function saveNote(input: SaveNoteInput): Promise<SaveNoteResult> {
     content,
     updatedAt: now,
     pinHash: protectEnabled ? hashPin(pinInput) : undefined,
+    photos: photos.length > 0 ? photos : undefined,
   };
 
   const nextNotes = [newNote, ...notes];
@@ -102,4 +110,39 @@ export function unlockProtectedNote(note: Note, enteredPin: string): boolean {
     return true;
   }
   return hashPin(enteredPin) === note.pinHash;
+}
+
+export async function createFolder(folders: Folder[], name: string): Promise<Folder[]> {
+  const newFolder: Folder = {
+    id: createId(),
+    name: name.trim() || 'New Folder',
+    createdAt: Date.now(),
+  };
+  const nextFolders = [...folders, newFolder];
+  await setStoredFolders(nextFolders);
+  return nextFolders;
+}
+
+export async function deleteFolder(folders: Folder[], folderId: string): Promise<Folder[]> {
+  const nextFolders = folders.filter(f => f.id !== folderId);
+  await setStoredFolders(nextFolders);
+  return nextFolders;
+}
+
+export async function moveNotesToFolder(
+  notes: Note[],
+  noteIds: string[],
+  folderId: string | undefined
+): Promise<Note[]> {
+  const nextNotes = notes.map(note =>
+    noteIds.includes(note.id) ? { ...note, folderId } : note
+  );
+  await setStoredNotes(nextNotes);
+  return nextNotes;
+}
+
+export async function deleteMultipleNotes(notes: Note[], noteIds: string[]): Promise<Note[]> {
+  const nextNotes = notes.filter(note => !noteIds.includes(note.id));
+  await setStoredNotes(nextNotes);
+  return nextNotes;
 }

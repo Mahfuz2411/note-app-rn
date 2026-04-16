@@ -43,16 +43,16 @@ export const THEMES: Record<ThemeId, AppTheme> = {
   midnight: {
     id: 'midnight',
     name: 'Midnight Dark',
-    accent: '#60a5fa',
-    accentSoft: '#1e3a8a',
-    bg: '#0b1220',
-    card: '#111827',
-    text: '#e5e7eb',
-    muted: '#94a3b8',
-    border: '#253047',
+    accent: '#F5C842',
+    accentSoft: '#2a2a2a',
+    bg: '#0a0a0a',
+    card: '#1a1a1a',
+    text: '#ffffff',
+    muted: '#888888',
+    border: '#2a2a2a',
     danger: '#f87171',
-    modalOverlay: 'rgba(0, 0, 0, 0.55)',
+    modalOverlay: 'rgba(0, 0, 0, 0.7)',
   },
 };
 
-export const defaultThemeId: ThemeId = 'ocean';
+export const defaultThemeId: ThemeId = 'midnight';
